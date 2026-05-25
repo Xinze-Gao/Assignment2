@@ -1,9 +1,10 @@
+import java.io.Serializable;
 /**
  * Holds all player status values.
  * GPA is the primary score. Mental reaching 0 = game over.
  * Happiness is a secondary value affecting events.
  */
-public class PlayerState {
+public class PlayerState implements Serializable {
     private float gpa;
     private int mental;
     private int happiness;
@@ -37,10 +38,45 @@ public class PlayerState {
     }
 
     /**
+     * Apply combo bonus effects (used by ComboSystem).
+     */
+    public void applyComboEffect(float gpaChange, int mentalChange, int happyChange) {
+        this.gpa = clamp(this.gpa + gpaChange, GPA_MIN, GPA_MAX);
+        this.mental = clamp(this.mental + mentalChange, MENTAL_MIN, MENTAL_MAX);
+        this.happiness = clamp(this.happiness + happyChange, HAPPY_MIN, HAPPY_MAX);
+    }
+
+    /**
+     * Apply event effects to player state.
+     */
+    public void applyEventEffects(float gpaChange, int mentalChange, int happyChange) {
+        this.gpa = clamp(this.gpa + gpaChange, GPA_MIN, GPA_MAX);
+        this.mental = clamp(this.mental + mentalChange, MENTAL_MIN, MENTAL_MAX);
+        this.happiness = clamp(this.happiness + happyChange, HAPPY_MIN, HAPPY_MAX);
+    }
+
+    /**
+     * Apply a raw numeric effect directly to state.
+     * Used by Buff system to modify card effects.
+     */
+    public void applyRawEffect(float gpaChange, int mentalChange, int happyChange) {
+        this.gpa = clamp(this.gpa + gpaChange, GPA_MIN, GPA_MAX);
+        this.mental = clamp(this.mental + mentalChange, MENTAL_MIN, MENTAL_MAX);
+        this.happiness = clamp(this.happiness + happyChange, HAPPY_MIN, HAPPY_MAX);
+    }
+
+    /**
      * Reset actions to full at the start of a new turn.
      */
     public void resetActions() {
         this.actionsLeft = 3;
+    }
+
+    /**
+     * Set actions to a specific value (used by Efficient buff).
+     */
+    public void setActions(int actions) {
+        this.actionsLeft = actions;
     }
 
     /**

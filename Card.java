@@ -1,11 +1,12 @@
 import java.util.List;
+import java.io.Serializable;
 
 /**
  * Represents a single card in the game.
  * Each card has effects on GPA, mental, and happiness values.
  * Tags are used for Combo detection.
  */
-public class Card {
+public class Card implements Serializable{
     private int id;
     private String name;
     private String description;

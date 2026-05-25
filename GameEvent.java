@@ -1,9 +1,10 @@
+import java.io.Serializable;
 /**
  * Random event that triggers at the start or end of a day.
  * Events can affect GPA, mental, and happiness.
  * Full implementation in Phase 3. This is the data skeleton.
  */
-public class GameEvent {
+public class GameEvent implements Serializable{
     private int id;
     private String title;
     private String description;

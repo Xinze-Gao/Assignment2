@@ -20,7 +20,10 @@ public class GameManager implements Serializable {
     private String lastCombo;           // most recent combo name for UI display
     private boolean gameOver;
     private boolean gameWon;
+     // True when waiting for growth choice popup
 
+    private boolean waitingForEventResolution;
+    private boolean waitingForGrowthChoice;
     private static final int HAND_SIZE = 5;
     private static final int MAX_DAYS = 30;
     private static final float GPA_TARGET = 3.5f;
@@ -36,6 +39,8 @@ public class GameManager implements Serializable {
         this.gameOver = false;
         this.gameWon = false;
         this.deck = new ArrayList<>();
+        this.waitingForEventResolution = false;
+        this.waitingForGrowthChoice = false;
     }
 
     // ======================================================
@@ -219,56 +224,78 @@ public class GameManager implements Serializable {
     /**
      * End the current turn: discard played cards, draw new hand, advance day.
      */
+
+    /**
+     * End the current turn: discard played cards, draw new hand, advance day.
+     */
     public void endTurn() {
-        // Reset combo for new turn
+
         lastCombo = null;
 
-        // Move played cards to discard pile
+
         discardPile.addAll(playedCards);
         playedCards.clear();
 
-        // Discard remaining hand cards too (player didn't play them)
+
         discardPile.addAll(handCards);
         handCards.clear();
 
-        // Advance to next day
+
         playerState.nextDay();
 
-        // Efficient buff: extra action per turn
+
         if (hasBuff(8)) {
             playerState.setActions(4);
         }
 
-        if (!gameOver) {
-            // Adaptive difficulty: higher GPA means more bad events
-            double badEventChance = 0.3;
-            if (playerState.getGpa() > 3.5) {
-                badEventChance = 0.6;
-            }
-            if (playerState.getGpa() < 1.5) {
-                badEventChance = 0.15;
-            }
-
-            if (Math.random() < badEventChance) {
-                currentEvent = EventPool.getHardEventSimple();
-            } else {
-                currentEvent = EventPool.getRandomEvent(playerState.getCurrentDay());
-            }
-
-            if (currentEvent != null) {
-                playerState.applyEventEffects(
-                        currentEvent.getGpaEffect(),
-                        currentEvent.getMentalEffect(),
-                        currentEvent.getHappyEffect()
-                );
-                System.out.println("[EVENT] " + currentEvent);
-            }
-        }
+        // Trigger random event (without applying yet)
+        triggerEvent();
 
         // Check win/lose conditions
         checkGameEndConditions();
 
-        // Draw new hand if game continues
+        // Check if growth choice is needed (Day 10 or Day 20)
+        if (playerState.getCurrentDay() == 10 || playerState.getCurrentDay() == 20) {
+            waitingForGrowthChoice = true;
+            return;  // Wait for growth choice, don't finish turn yet
+        }
+
+        // If no event is waiting, finish turn immediately
+        if (!waitingForEventResolution) {
+            finishEndTurn();
+        }
+    }
+
+    public void confirmEvent() {
+        if (currentEvent != null) {
+            playerState.applyEventEffects(
+                    currentEvent.getGpaEffect(),
+                    currentEvent.getMentalEffect(),
+                    currentEvent.getHappyEffect()
+            );
+            System.out.println("[EVENT] Applied: " + currentEvent);
+        }
+        waitingForEventResolution = false;
+        currentEvent = null;
+
+
+        finishEndTurn();
+    }
+
+    /**
+     *
+     * @param choiceIndex 0=新卡, 1=升级, 2=新Buff
+     */
+    public void confirmGrowthChoice(int choiceIndex) {
+        makeGrowthChoice(choiceIndex);
+        waitingForGrowthChoice = false;
+
+        finishEndTurn();
+    }
+
+    private void finishEndTurn() {
+        checkGameEndConditions();
+
         if (!gameOver) {
             drawCards(HAND_SIZE);
         }
@@ -277,6 +304,28 @@ public class GameManager implements Serializable {
         System.out.println(playerState);
     }
 
+    private void triggerEvent() {
+        if (gameOver) return;
+
+
+        double badEventChance = 0.3;
+        if (playerState.getGpa() > 3.5) {
+            badEventChance = 0.6;
+        }
+        if (playerState.getGpa() < 1.5) {
+            badEventChance = 0.15;
+        }
+
+        if (Math.random() < badEventChance) {
+            currentEvent = EventPool.getHardEventSimple();
+        } else {
+            currentEvent = EventPool.getRandomEvent(playerState.getCurrentDay());
+        }
+
+        if (currentEvent != null) {
+            waitingForEventResolution = true;
+        }
+    }
     /**
      * Check if the game should end (win or lose).
      */
@@ -414,6 +463,12 @@ public class GameManager implements Serializable {
     public int getActionsLeft() { return playerState.getActionsLeft(); }
     public int getDeckSize() { return deck.size(); }
     public int getDiscardSize() { return discardPile.size(); }
+
+    public boolean isWaitingForEventResolution() { return waitingForEventResolution; }
+    public void setWaitingForEventResolution(boolean waiting) { this.waitingForEventResolution = waiting; }
+
+    public boolean isWaitingForGrowthChoice() { return waitingForGrowthChoice; }
+    public void setWaitingForGrowthChoice(boolean waiting) { this.waitingForGrowthChoice = waiting; }
 
     // ======================================================
     //  CONSOLE TEST (Phase 1 self-testing)
